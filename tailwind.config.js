@@ -6,7 +6,8 @@ export default {
   ],
   theme: {
     fontFamily: {
-      pjs: ["Plus Jakarta Sans", "sans-serif"]
+      pjs: ["Plus Jakarta Sans", "sans-serif"],
+      poppins: ["Poppins", "sans-serif"],
     },
     container: {
       center: true,

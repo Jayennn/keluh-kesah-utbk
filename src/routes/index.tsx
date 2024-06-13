@@ -1,6 +1,7 @@
 import {createBrowserRouter} from "react-router-dom";
 import App from "../App.tsx";
 import Chats from "../components/chats/Chats.tsx";
+import Sidebar from "../components/layouts/Sidebar.tsx";
 
 export const route = createBrowserRouter([
   {
@@ -8,7 +9,12 @@ export const route = createBrowserRouter([
     element: <App/>
   },
   {
-    path: "/chats",
-    element: <Chats/>
+    element: <Sidebar/>,
+    children: [
+      {
+        path: "/chats",
+        element: <Chats/>
+      }
+    ]
   }
 ])

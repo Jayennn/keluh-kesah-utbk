@@ -11,8 +11,13 @@
   },
   "dependencies": {
     "firebase": "^10.12.2",
+    "framer-motion": "^11.2.10",
+    "lucide-react": "^0.394.0",
+    "moment": "^2.30.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-dropzone": "^14.2.3",
+    "react-firebase-hooks": "^5.1.1",
     "react-router-dom": "^6.23.1"
   },
   "devDependencies": {
