@@ -1,28 +1,30 @@
-import { ImageUp, Send } from "lucide-react";
+import {ImageUp, Send, X} from "lucide-react";
 import React, { useState } from "react";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, updateDoc, doc, arrayUnion, Timestamp } from "firebase/firestore";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { auth, database } from "../../firebase-config/firebase";
-import { useAuthState } from "react-firebase-hooks/auth";
+import { database } from "../../firebase-config/firebase";
+import {ReplyChatType} from "./Chats.tsx";
+import {randomName} from "../../lib/utils.ts";
 
 interface ChatMessageProps {
   setMessage: React.Dispatch<React.SetStateAction<string>>;
   message: string;
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  scrollNewChat:  React.RefObject<HTMLDivElement>;
+  scrollReplyChat: React.RefObject<HTMLDivElement>;
+  id: string | undefined;
+  setReplyChat: React.Dispatch<React.SetStateAction<ReplyChatType | null>>;
+  setViewReply:  React.Dispatch<React.SetStateAction<string[]>>;
+
 }
 
-function ChatMessage({ message, setMessage, setIsLoading }: ChatMessageProps) {
-  const [user] = useAuthState(auth);
+function ChatMessage(
+  { message, setMessage, setIsLoading, scrollNewChat, scrollReplyChat, id, setReplyChat, setViewReply }: ChatMessageProps) {
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
 
   const sendMessage = async () => {
-    if (message.trim() === "") {
-      alert("Enter valid message");
-      return;
-    }
-
-    const { uid, displayName, photoURL } = user || {};
+    // const { uid, displayName, photoURL } = user || {};
     let fileURL = null;
 
     if (file) {
@@ -55,14 +57,38 @@ function ChatMessage({ message, setMessage, setIsLoading }: ChatMessageProps) {
       });
     }
 
+    if(id) {
+      try {
+        await updateDoc(doc(database, "messages", id), {
+          replies: arrayUnion({
+            user_name: randomName(),
+            user_image: null,
+            text: message,
+            file: fileURL,
+            createdAt: Timestamp.now(),
+            // uid,
+          })
+        })
+        setMessage("");
+        setFile(null);
+        setFilePreview(null);
+        setReplyChat(null);
+        setViewReply((prev) => [...prev, id])
+        scrollReplyChat.current?.scrollIntoView({behavior: "smooth"})
+        return;
+      } catch (e) {
+        console.error(e)
+      }
+    }
+
     try {
       await addDoc(collection(database, "messages"), {
-        user_name: displayName,
-        user_image: photoURL,
+        user_name: randomName(),
+        user_image: null,
         text: message,
         file: fileURL,
         createdAt: serverTimestamp(),
-        uid,
+        replies: []
       });
     } catch (e) {
       console.error(e);
@@ -71,6 +97,7 @@ function ChatMessage({ message, setMessage, setIsLoading }: ChatMessageProps) {
     setMessage("");
     setFile(null);
     setFilePreview(null);
+    scrollNewChat.current?.scrollIntoView({behavior: "smooth"})
   };
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,33 +108,38 @@ function ChatMessage({ message, setMessage, setIsLoading }: ChatMessageProps) {
     }
   };
 
+  console.log(message.length)
   return (
     <>
-      <div className="sticky bottom-0 w-full p-3 bg-white">
-        <div className="relative">
-          {filePreview && (
-            <div className="rounded-md mb-2 bg-gray-100/80 border border-dashed flex justify-center items-center">
-              <img src={filePreview} alt="file-upload" className="w-[20rem] h-[20rem] object-contain p-4 rounded-md" />
-            </div>
-          )}
-          <textarea
-            className="min-h-[100px] w-full rounded-md border border-gray-200 bg-gray-100 p-3 pr-16 text-sm focus:border-blue-500 focus:outline-none resize-none"
-            placeholder="Tulis keluh kesah"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-          />
-          <div className="absolute bottom-3 px-4 flex items-center justify-between w-full">
-            <div>
-              <input id="upload-image" type="file" className="sr-only" onChange={handleImageChange} />
-              <label htmlFor="upload-image">
-                <ImageUp className="h-5 w-5" />
-              </label>
-            </div>
+      <div className="relative">
+        {filePreview && (
+          <div className="relative rounded-md mb-2 bg-gray-100/80 border border-dashed flex justify-center items-center">
+            <X className="absolute top-3 right-3 text-red-500" onClick={() => {
+              setFile(null);
+              setFilePreview(null);
+            }}/>
+            <img src={filePreview} alt="file-upload" className="w-[20rem] h-[20rem] object-contain p-4 rounded-md" />
+          </div>
+        )}
+        <textarea
+          className="min-h-[100px] w-full rounded-md border border-gray-200 bg-gray-100 p-3 pr-16 text-sm focus:border-blue-500 focus:outline-none resize-none"
+          placeholder="Tulis keluh kesah"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+        />
+        <div className="absolute bottom-3 px-4 flex items-center justify-between w-full">
+          <div className="py-2 flex items-center gap-2">
+            <input id="upload-image" type="file" className="sr-only" onChange={handleImageChange} />
+            <label htmlFor="upload-image">
+              <ImageUp className="h-5 w-5" />
+            </label>
+          </div>
+          {(message.length >= 1 || file) && (
             <button onClick={sendMessage} className="bg-white flex items-center h-9 px-4 py-2 text-sm border rounded-md">
               Gass
               <Send className="ml-2 h-4 w-4" />
             </button>
-          </div>
+          )}
         </div>
       </div>
     </>

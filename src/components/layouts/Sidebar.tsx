@@ -20,7 +20,7 @@ function Sidebar(){
   return (
     <>
       <div className="flex min-h-screen font-poppins">
-        <div className="fixed top-0 max-w-[270px] w-full border-r border-gray-300 border-solid">
+        <div className="hidden sm:block fixed top-0 max-w-[270px] w-full border-r border-gray-300 border-solid">
           <div className="h-screen flex flex-col p-4">
             <div className="flex items-center space-x-3">
               <div className="relative h-10 w-10 overflow-hidden rounded-full">
@@ -37,7 +37,7 @@ function Sidebar(){
             </button>
           </div>
         </div>
-        <div className="ml-[270px] w-full min-h-[80vh]">
+        <div className="sm:ml-[270px] w-full min-h-[80vh]">
           <Outlet/>
         </div>
       </div>

@@ -1,16 +1,15 @@
-import {auth, provider} from "./firebase-config/firebase";
-import {signInWithPopup} from "firebase/auth";
 import { useNavigate} from "react-router-dom";
 function App() {
   const navigate = useNavigate();
 
   const signInGoogle = async() => {
-    try {
-      await signInWithPopup(auth, provider);
-      navigate("/chats")
-    } catch (e) {
-      console.error(e);
-    }
+    navigate("/chats")
+    // try {
+    //   await signInWithPopup(auth, provider);
+    //   navigate("/chats")
+    // } catch (e) {
+    //   console.error(e);
+    // }
   }
 
 
@@ -20,7 +19,7 @@ function App() {
         <div className="max-w-md w-full space-y-6 text-center">
           <h1 className="font-bold text-4xl tracking-tighter text-gray-900">Keluh Kesah SNBT</h1>
           <p className="text-lg font-medium text-gray-500">
-            Share your thoughts and experiences about the UTBK exam.
+            Share your thoughts and experiences about the UTBK exam and SNBT.
           </p>
           <div className="flex justify-center gap-4">
             <button onClick={signInGoogle} className="inline-flex h-10 items-center justify-center rounded-md bg-gray-900 px-6 text-sm font-medium text-gray-50 shadow transition-colors hover:bg-gray-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50">
