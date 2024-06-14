@@ -45,6 +45,7 @@ function Chats() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [replyChat, setReplyChat] = useState<ReplyChatType | null>(null);
   const [viewReply, setViewReply] = useState<string[]>([]);
+  const [loadChat, setLoadChat] = useState<boolean>(false);
   const scrollNewChat = useRef<HTMLDivElement>(null);
   const scrollReplyChat = useRef<HTMLDivElement>(null);
 
@@ -60,6 +61,7 @@ function Chats() {
 
 
   useEffect(() => {
+    setLoadChat(true)
     const q = query(
       collection(database, "messages"),
       orderBy("createdAt", "desc"),
@@ -72,6 +74,9 @@ function Chats() {
       } as MessagesType));
       setChats(messagesData.reverse());
     });
+    setTimeout(() => {
+      setLoadChat(false)
+    }, 2000)
 
     return () => unsubscribe();
   }, []);
@@ -79,7 +84,7 @@ function Chats() {
   return (
     <>
       <div className="space-y-3 min-h-screen bg-white font-poppins">
-        {chats.length < 1 ? (
+        {(loadChat || chats.length < 1) ? (
           <div className="grid place-content-center h-[75vh]">
             <p className="text-center text-lg font-bold uppercase">Selamat datang di Keluh Kesah UTBK</p>
           </div>

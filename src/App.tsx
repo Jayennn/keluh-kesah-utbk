@@ -1,4 +1,5 @@
-import { useNavigate} from "react-router-dom";
+import {Link, useNavigate} from "react-router-dom";
+import {Instagram} from "lucide-react"
 function App() {
   const navigate = useNavigate();
 
@@ -25,9 +26,10 @@ function App() {
             <button onClick={signInGoogle} className="inline-flex h-10 items-center justify-center rounded-md bg-gray-900 px-6 text-sm font-medium text-gray-50 shadow transition-colors hover:bg-gray-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50">
               Share your story
             </button>
-            <button className="inline-flex h-10 items-center justify-center rounded-md border border-gray-200 bg-white px-6 text-sm font-medium shadow-sm transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50">
+            <Link target="_blank" to="https://www.instagram.com/_giannnt?igsh=MXJ3bGUzbmx3bng0Yg==" className="inline-flex h-10 items-center justify-center rounded-md border border-gray-200 bg-white px-6 text-sm font-medium shadow-sm transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50">
               Instagram
-            </button>
+              <Instagram className="ml-2 w-4 h-4"/>
+            </Link>
           </div>
         </div>
       </div>
