@@ -7,5 +7,5 @@
 
 
 .reply-radius::before {
-    @apply absolute -left-[2.9rem] -top-[5rem] content-[""] w-[20px] h-[6rem] border-l-[2px] border-b-[2px] rounded-bl-md
+    @apply absolute -left-[46px] -top-[5rem] content-[""] w-[20px] h-[6rem] border-l-[2px] border-b-[2px] rounded-bl-md
 }

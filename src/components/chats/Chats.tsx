@@ -117,9 +117,14 @@ function Chats() {
 
                     {/*Message Body*/}
                     <div className="p-2 bg-gray-200/60 min-w-[20rem] max-w-[25rem] rounded-md">
-                      <div className="user-info ">
-                        <p className="text-sm font-medium">{chat.user_name}</p>
-                        <p className="text-xs leading-3 text-gray-500">{formatDuration(chat.createdAt)}</p>
+                      <div className="user-info flex justify-between">
+                        <div className="flex flex-col">
+                          <p className="text-sm font-medium">{chat.user_name}</p>
+                          <p className="text-xs leading-3 text-gray-500">{formatDuration(chat.createdAt)}</p>
+                        </div>
+                        {chat.user_name === name && (
+                          <Trash2 className="mt-2 w-4 h-4 sm:w-5 sm:h-5 hover:rotate-6 hover:text-red-500 transition-all" onClick={() => deleteChatHandler(chat.id)} />
+                        )}
                       </div>
                       <div className="relative space-y-2">
                         <div aria-label="message-body" className="space-y-2 relative">
@@ -234,9 +239,6 @@ function Chats() {
                   </div>
 
                 </div>
-                {chat.user_name === name && (
-                  <Trash2 className="mt-2 w-4 h-4 sm:w-5 sm:h-5 hover:rotate-6 hover:text-red-500 transition-all" onClick={() => deleteChatHandler(chat.id)} />
-                )}
               </motion.div>
               ))}
           </AnimatePresence>
