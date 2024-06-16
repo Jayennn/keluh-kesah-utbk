@@ -1,6 +1,6 @@
 import {Link, useNavigate} from "react-router-dom";
 import {CircleCheck, Instagram} from "lucide-react"
-import {FormEvent, useContext, useEffect, useState} from "react";
+import {FormEvent, useContext, useState} from "react";
 
 import {addDoc, collection, getDocs, query, where} from "firebase/firestore";
 import {database} from "./firebase-config/firebase.ts";
