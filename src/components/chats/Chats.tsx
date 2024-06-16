@@ -1,17 +1,20 @@
-import {useEffect, useRef, useState} from "react";
+import {useContext, useEffect, useRef, useState} from "react";
 import placeholderUser from "../../assets/placeholder/placeholder-user.jpg";
-import {ChevronDown, X} from "lucide-react";
+import {ChevronDown, Trash2, X} from "lucide-react";
 import {
   collection,
   query,
   orderBy,
   onSnapshot,
   Timestamp,
+  deleteDoc,
+  doc
 } from "firebase/firestore";
 import { database } from "../../firebase-config/firebase";
 import ChatMessage from "./ChatMessage.tsx";
 import {motion, AnimatePresence} from "framer-motion";
 import {cn, formatDuration} from "../../lib/utils.ts";
+import {UserContext, UserContextType} from "../../contexts/UserContext.tsx";
 
 type ReplyMessageType = {
   user_name: string;
@@ -21,6 +24,8 @@ type ReplyMessageType = {
   uid: string;
   file: string | null;
   id: string;
+  messageId: string;
+  _replyTo: string;
 }
 
 type MessagesType = {
@@ -36,28 +41,30 @@ type MessagesType = {
 
 export type ReplyChatType = {
   user_name: string,
-  id: string
+  id: string,
+  _replyTo: string,
+  replyMessageId?: string
 }
 
 function Chats() {
   const [message, setMessage] = useState<string>("");
   const [chats, setChats] = useState<MessagesType[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [replyChat, setReplyChat] = useState<ReplyChatType | null>(null);
   const [viewReply, setViewReply] = useState<string[]>([]);
   const [loadChat, setLoadChat] = useState<boolean>(false);
   const scrollNewChat = useRef<HTMLDivElement>(null);
   const scrollReplyChat = useRef<HTMLDivElement>(null);
+  const {name} = useContext(UserContext) as UserContextType;
 
   /**/
-  // const deleteChatHandler = async (id: string) => {
-  //   try {
-  //     await deleteDoc(doc(database, "messages", id));
-  //     console.log(`Document with ID ${id} deleted`);
-  //   } catch (e) {
-  //     console.error("Error deleting document: ", e);
-  //   }
-  // };
+  const deleteChatHandler = async (id: string) => {
+    try {
+      await deleteDoc(doc(database, "messages", id));
+      console.log(`Document with ID ${id} deleted`);
+    } catch (e) {
+      console.error("Error deleting document: ", e);
+    }
+  };
 
 
   useEffect(() => {
@@ -76,11 +83,11 @@ function Chats() {
     });
     setTimeout(() => {
       setLoadChat(false)
-    }, 2000)
+    }, 1000)
 
     return () => unsubscribe();
   }, []);
-  console.log(viewReply)
+
   return (
     <>
       <div className="space-y-3 min-h-screen bg-white font-poppins">
@@ -103,104 +110,133 @@ function Chats() {
                 )}
               >
                 <div className="flex space-x-3">
-                  <div className="flex space-x-3 relative">
-                    <div className="relative h-8 w-8 overflow-hidden rounded-full border">
-                      <img className="object-contain" src={chat.user_image ?? placeholderUser} alt="user-image"/>
-                    </div>
-                    {/*{chat.replies && chat.replies?.length >= 1 && (*/}
-                    {/*  <div className="absolute w-[25px] h-[90px] rounded-bl-md top-10 border-l-[2px] border-b-[2px]"></div>*/}
-                    {/*)}*/}
+                  <div className="relative h-8 w-8 overflow-hidden rounded-full border">
+                    <img className="object-contain" src={chat.user_image ?? placeholderUser} alt="user-image"/>
                   </div>
-                  <div className="flex flex-col space-y-4 ">
-                    <div className="user-info ">
-                      <p className="text-sm font-medium">{chat.user_name}</p>
-                      <p className="text-xs leading-3 text-gray-500">{formatDuration(chat.createdAt)}</p>
-                    </div>
-                    <div className="relative space-y-2">
-                      <div aria-label="message-body" className="space-y-2 relative">
-                        {(chat.replies && chat.replies?.length >= 1) && (
-                          <div className="absolute w-[2px] h-full top-0 -left-[30px] border-l-[2px] bg-black"></div>
-                        )}
-                        {chat.file && (
-                          <div className="py-2">
-                            {isLoading ? (
-                              <p>Loading Brok</p>
-                            ) : (
-                              <img className="w-[15rem] md:w-[20rem] h-auto" src={chat.file} alt="file-uploaded"/>
-                            )}
-                          </div>
-                        )}
-                        <p className="leading-6 text-sm max-w-4xl">{chat.text}</p>
-                        {/* BUTTON REPLY CHAT & SHOW CHAT*/}
+                  <div className="flex flex-col space-y-3">
+
+                    {/*Message Body*/}
+                    <div className="p-2 bg-gray-200/60 min-w-[20rem] max-w-[25rem] rounded-md">
+                      <div className="user-info ">
+                        <p className="text-sm font-medium">{chat.user_name}</p>
+                        <p className="text-xs leading-3 text-gray-500">{formatDuration(chat.createdAt)}</p>
                       </div>
-                        <div className="flex flex-col space-y-4">
-                          <button
-                            onClick={() => setReplyChat(
-                              {
-                                id: chat.id,
-                                user_name: chat.user_name
-                              }
-                            )}
-                            className="inline-flex items-center"
-                          >
-                            {/*<ReplyAll className="w-5 h-5" />*/}
-                            <p className="text-sm text-gray-500">Reply</p>
-                          </button>
+                      <div className="relative space-y-2">
+                        <div aria-label="message-body" className="space-y-2 relative">
                           {(chat.replies && chat.replies?.length >= 1) && (
-                            <p className={cn(
-                              "text-xs font-medium text-gray-600 cursor-pointer inline-flex",
-                              viewReply.find(reply => reply === chat.id) && "hidden"
-                            )} onClick={() => setViewReply((prev) => [...prev, chat.id])}>
-                              View {chat.replies.length} replies
-                              <ChevronDown className="ml-2 w4 h-4"/>
-                            </p>
+                            <div className="absolute w-[2px] h-full top-0 -left-[38px] border-l-[2px]"></div>
                           )}
+                          {chat.file && (
+                            <div className="py-2 flex justify-center items-center">
+                              <img className="w-[15rem] md:w-[20rem] h-auto" src={chat.file} alt="file-uploaded"/>
+                            </div>
+                          )}
+                          <p className="leading-6 text-sm max-w-4xl">{chat.text}</p>
+
                         </div>
-
+                      </div>
                     </div>
-                      {/* REPLIES CHATS */}
-                      <div className="flex flex-col space-y-6 pl-4">
-                        {chat.replies?.map((reply) => (
-                          <div ref={scrollReplyChat} key={reply.id}  className={cn("hidden", viewReply.find(reply => reply === chat.id) && "block")}>
 
-                            <div className="reply-radius flex space-x-3 relative">
-                              <div className="flex space-x-3">
-                                <div className="relative h-8 w-8 overflow-hidden rounded-full">
-                                  <img className="object-contain" src={reply.user_image ?? placeholderUser} alt="user-image"/>
-                                </div>
+                    {/* BUTTON REPLY CHAT & SHOW CHAT*/}
+                    <div className="flex flex-col space-y-4">
+                      <button
+                        onClick={() => setReplyChat(
+                          {
+                            id: chat.id,
+                            user_name: chat.user_name,
+                            _replyTo: chat.user_name
+                          }
+                        )}
+                        className="inline-flex items-center"
+                      >
+                        <p className="text-sm text-gray-500">Reply</p>
+                      </button>
+                      {(chat.replies && chat.replies?.length >= 1) && (
+                        <p className={cn(
+                          "text-xs font-medium text-gray-600 cursor-pointer inline-flex",
+                          viewReply.find(reply => reply === chat.id) && "hidden"
+                        )} onClick={() => setViewReply((prev) => [...prev, chat.id])}>
+                          View {chat.replies.length} replies
+                          <ChevronDown className="ml-2 w4 h-4"/>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* REPLIES CHATS */}
+
+                    <div className="flex flex-col space-y-6 pl-4">
+                      {chat.replies?.map((reply, index) => (
+                        <div ref={scrollReplyChat} key={reply.messageId}  className={cn("hidden", viewReply.find(reply => reply === chat.id) && "block")}>
+
+                          <div className="reply-radius flex flex-col space-y-3 space-x-3 relative">
+                            <div className="flex space-x-3">
+                              <div className="relative h-8 w-8 overflow-hidden rounded-full border">
+                                <img className="object-contain" src={reply.user_image ?? placeholderUser} alt="user-image"/>
                               </div>
-                              <div>
-                                <div className="user-info">
-                                  <div className="inline-flex gap-2 items-center">
-                                    <p className="text-sm font-medium">{reply.user_name} to </p>
-                                    <p className="text-sm text-gray-500">
-                                      {chat.user_name}
-                                    </p>
-                                  </div>
-                                  <p className="text-xs leading-3 text-gray-500">{formatDuration(reply.createdAt)}</p>
-                                </div>
-                                <div className="space-y-2">
-                                  {reply.file && (
-                                    <div className="py-2">
-                                      {isLoading ? (
-                                        <p>Loading Brok</p>
-                                      ) : (
-                                        <img className="w-[15rem] md:w-[20rem] h-auto" src={reply.file} alt="file-uploaded"/>
-                                      )}
+
+                              <div className="space-y-3 w-full max-w-[15rem] relative">
+                                {index !== (chat.replies?.length || 0) - 1 && (
+                                  <div className="absolute w-[2px] h-[112%] -top-[32px] -left-[90px] border-l-[2px]"></div>
+                                )}
+                                <div className="user-info p-2 bg-gray-200/60 rounded-md">
+                                  <div className="flex flex-col space-y-1">
+                                    <div className="inline-flex gap-1 items-center">
+                                      <p className="text-sm font-medium">{reply.user_name} {" "} to </p>
+                                      <p className="text-sm text-gray-500 max-w-[5rem] truncate">{reply._replyTo}</p>
                                     </div>
-                                  )}
-                                  <p className="leading-6 text-sm">{reply.text}</p>
+                                    <p className="text-xs leading-3 text-gray-500">{formatDuration(reply.createdAt)}</p>
+                                  </div>
+                                  <div className="flex flex-col space-y-2">
+                                    {reply.file && (
+                                      <div className="py-2">
+                                        <img className="w-[15rem] md:w-[20rem] h-auto" src={reply.file} alt="file-uploaded"/>
+                                      </div>
+                                    )}
+                                    <p className="leading-6 text-sm">{reply.text}</p>
+                                  </div>
+                                </div>
+                                <div className="flex flex-col space-y-2">
+
+                                  {/* BUTTON REPLY CHAT & SHOW CHAT*/}
+                                  <div className="flex flex-col space-y-4">
+                                    <button
+                                      onClick={() => setReplyChat(
+                                        {
+                                          id: chat.id,
+                                          user_name: reply.user_name,
+                                          replyMessageId: reply.messageId,
+                                          _replyTo: reply.user_name
+                                        }
+                                      )}
+                                      className="inline-flex items-center"
+                                    >
+                                      <p className="text-sm text-gray-500">Reply</p>
+                                    </button>
+                                    {(chat.replies && chat.replies?.length >= 1) && (
+                                      <p className={cn(
+                                        "text-xs font-medium text-gray-600 cursor-pointer inline-flex",
+                                        viewReply.find(reply => reply === chat.id) && "hidden"
+                                      )} onClick={() => setViewReply((prev) => [...prev, chat.id])}>
+                                        View {chat.replies.length} replies
+                                        <ChevronDown className="ml-2 w4 h-4"/>
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
+
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
+                    </div>
 
                   </div>
 
                 </div>
-                {/*<Trash2 className="mt-2 w-4 h-4 sm:w-5 sm:h-5 hover:rotate-6 hover:text-red-500 transition-all" onClick={() => deleteChatHandler(chat.id)} />*/}
+                {chat.user_name === name && (
+                  <Trash2 className="mt-2 w-4 h-4 sm:w-5 sm:h-5 hover:rotate-6 hover:text-red-500 transition-all" onClick={() => deleteChatHandler(chat.id)} />
+                )}
               </motion.div>
               ))}
           </AnimatePresence>
@@ -224,11 +260,10 @@ function Chats() {
         </AnimatePresence>
         <div className="p-3 pt-0">
           <ChatMessage
-            id={replyChat?.id}
+            replyChat={replyChat}
             setViewReply={setViewReply}
             setMessage={setMessage}
             message={message}
-            setIsLoading={setIsLoading}
             scrollNewChat={scrollNewChat}
             scrollReplyChat={scrollReplyChat}
             setReplyChat={setReplyChat}

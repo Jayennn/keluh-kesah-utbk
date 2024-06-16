@@ -1,124 +1,206 @@
-import {ImageUp, Send, X} from "lucide-react";
-import React, { useState } from "react";
-import { addDoc, collection, serverTimestamp, updateDoc, doc, arrayUnion, Timestamp } from "firebase/firestore";
+  import {ImageUp, Send, X} from "lucide-react";
+import React, {useContext, useRef, useState} from "react";
+import {addDoc, collection, updateDoc, doc, arrayUnion, Timestamp, getDoc} from "firebase/firestore";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { database } from "../../firebase-config/firebase";
 import {ReplyChatType} from "./Chats.tsx";
-import {randomName} from "../../lib/utils.ts";
+import {UserContext, UserContextType} from "../../contexts/UserContext.tsx";
 
 interface ChatMessageProps {
   setMessage: React.Dispatch<React.SetStateAction<string>>;
-  message: string;
-  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
   scrollNewChat:  React.RefObject<HTMLDivElement>;
   scrollReplyChat: React.RefObject<HTMLDivElement>;
-  id: string | undefined;
   setReplyChat: React.Dispatch<React.SetStateAction<ReplyChatType | null>>;
   setViewReply:  React.Dispatch<React.SetStateAction<string[]>>;
-
+  replyChat: ReplyChatType | null
+  message: string
 }
 
 function ChatMessage(
-  { message, setMessage, setIsLoading, scrollNewChat, scrollReplyChat, id, setReplyChat, setViewReply }: ChatMessageProps) {
+  {message, setMessage, scrollNewChat, scrollReplyChat, setReplyChat, setViewReply, replyChat }: ChatMessageProps) {
   const [file, setFile] = useState<File | null>(null);
+  const [uploadProgess, setUploadProgress] = useState<{
+    progress: number,
+    status: boolean
+  }>({ progress: 0, status: false });
   const [filePreview, setFilePreview] = useState<string | null>(null);
-
-  const sendMessage = async () => {
-    // const { uid, displayName, photoURL } = user || {};
-    let fileURL = null;
-
-    if (file) {
-      const storage = getStorage();
-      const storageRef = ref(storage, `uploads/${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      // Listen for state changes, errors, and completion of the upload.
-      await new Promise((resolve, reject) => {
-        uploadTask.on(
-          'state_changed',
-          (snapshot) => {
-            // Observe state change events such as progress, pause, and resume
-            if(snapshot.bytesTransferred !== snapshot.totalBytes){
-              setIsLoading(true)
-            }
-            setIsLoading(false)
-          },
-          (error) => {
-            console.error(error);
-            reject(error);
-          },
-          () => {
-            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-              fileURL = downloadURL;
-              resolve(fileURL);
-            });
-          }
-        );
-      });
-    }
-
-    if(id) {
-      try {
-        await updateDoc(doc(database, "messages", id), {
-          replies: arrayUnion({
-            user_name: randomName(),
-            user_image: null,
-            text: message,
-            file: fileURL,
-            createdAt: Timestamp.now(),
-            // uid,
-          })
-        })
-        setMessage("");
-        setFile(null);
-        setFilePreview(null);
-        setReplyChat(null);
-        setViewReply((prev) => [...prev, id])
-        scrollReplyChat.current?.scrollIntoView({behavior: "smooth"})
-        return;
-      } catch (e) {
-        console.error(e)
-      }
-    }
-
-    try {
-      await addDoc(collection(database, "messages"), {
-        user_name: randomName(),
-        user_image: null,
-        text: message,
-        file: fileURL,
-        createdAt: serverTimestamp(),
-        replies: []
-      });
-    } catch (e) {
-      console.error(e);
-    }
-
+  const {name} = useContext(UserContext) as UserContextType;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const afterReply = (messageId: string) => {
     setMessage("");
     setFile(null);
     setFilePreview(null);
-    scrollNewChat.current?.scrollIntoView({behavior: "smooth"})
+    setReplyChat(null);
+    setViewReply((prev) => [...prev, messageId]);
+    scrollReplyChat.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const afterSend = () => {
+    setMessage("");
+    setFile(null);
+    setFilePreview(null);
+    if(fileInputRef.current){
+      fileInputRef.current.value = "";
+    }
+    scrollNewChat.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+
+  const resetInputFields = () => {
+    setMessage("");
+    setFile(null);
+    setFilePreview(null);
+  };
+
+  const replyToMessage = async (messageId: string, text: string, fileURL: unknown, _replyTo: string) => {
+    try {
+      await updateDoc(doc(database, "messages", messageId), {
+        replies: arrayUnion({
+          user_name: name,
+          user_image: null,
+          text,
+          file: fileURL,
+          createdAt: Timestamp.now(),
+          messageId: new Date().getTime().toString(),
+          _replyTo
+        }),
+      });
+      afterReply(messageId)
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  const replyToReplyMessage = async(messageId: string, text: string, fileURL: unknown, _replyTo: string) => {
+    try {
+      const messageRef = doc(database, "messages", messageId);
+      const messageDoc = await getDoc(messageRef);
+      console.log(messageDoc.data())
+      if (!messageDoc.exists()) {
+        throw new Error(`Document with ID ${messageId} does not exist`);
+      }
+
+      const updatedReplies = arrayUnion({
+        user_name: name,
+        user_image: null,
+        text,
+        file: fileURL,
+        createdAt: Timestamp.now(),
+        messageId: new Date().getTime().toString(),
+        _replyTo,
+      });
+
+      await updateDoc(messageRef, {
+        replies: updatedReplies,
+      });
+
+      afterReply(messageId);
+    } catch (error) {
+      console.error('Error updating document:', error);
+    }
+  }
+
+  const uploadFile = (file: File) => {
+    const storage = getStorage();
+    const storageRef = ref(storage, `uploads/${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    return new Promise((resolve, reject) => {
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress({
+            progress: progress,
+            status: true
+          })
+        },
+
+        (error) => {
+          console.error(error);
+          reject(error);
+        },
+        async () => {
+          setUploadProgress({
+            progress: 0,
+            status: false
+          })
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(downloadURL);
+        }
+      );
+    });
+  }
+
+  const createNewMessage = async (text: string, fileURL: unknown) => {
+    try {
+      await addDoc(collection(database, "messages"), {
+        user_name: name,
+        user_image: null,
+        text,
+        file: fileURL,
+        createdAt: Timestamp.now(),
+        replies: [],
+      });
+      afterSend();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const sendMessage = async () => {
+    let fileURL: unknown = null;
+
+    if (file) {
+      fileURL = await uploadFile(file);
+    }
+
+    if(replyChat?.replyMessageId){
+      await replyToReplyMessage(replyChat.id, message, fileURL, replyChat._replyTo);
+      return;
+    }
+
+    if (replyChat?.id) {
+      console.log("messageID", replyChat.id)
+      await replyToMessage(replyChat.id, message, fileURL, replyChat._replyTo);
+    } else {
+      await createNewMessage(message, fileURL);
+    }
+
+    resetInputFields();
   };
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0] || null;
+    console.log("EVENT CHANGE", event.target)
     if (selectedFile) {
       setFile(selectedFile);
       setFilePreview(URL.createObjectURL(selectedFile));
     }
   };
 
-  console.log(message.length)
+
   return (
-    <>
+    <>`
       <div className="relative">
         {filePreview && (
-          <div className="relative rounded-md mb-2 bg-gray-100/80 border border-dashed flex justify-center items-center">
+          <div className="relative rounded-md mb-2 p-4 bg-gray-100/80 border border-dashed flex justify-center items-center">
             <X className="absolute top-3 right-3 text-red-500" onClick={() => {
               setFile(null);
               setFilePreview(null);
+              if(fileInputRef.current){
+                fileInputRef.current.value = "";
+              }
             }}/>
-            <img src={filePreview} alt="file-upload" className="w-[20rem] h-[20rem] object-contain p-4 rounded-md" />
+            <div className="flex flex-col gap-2">
+              <img src={filePreview} alt="file-upload" className="w-[20rem] h-[20rem] object-contain p-4 rounded-md" />
+              {uploadProgess.status && (
+                <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/70">
+                  <div className="h-full w-full flex-1 bg-black/90 transition-all" style={{ transform: `translateX(-${100 - (uploadProgess.progress || 0)}%)` }}></div>
+                </div>
+              )}
+            </div>
           </div>
         )}
         <textarea
@@ -129,7 +211,7 @@ function ChatMessage(
         />
         <div className="absolute bottom-3 px-4 flex items-center justify-between w-full">
           <div className="py-2 flex items-center gap-2">
-            <input id="upload-image" type="file" className="sr-only" onChange={handleImageChange} />
+            <input id="upload-image" type="file"  className="sr-only" onChange={handleImageChange} ref={fileInputRef} />
             <label htmlFor="upload-image">
               <ImageUp className="h-5 w-5" />
             </label>
