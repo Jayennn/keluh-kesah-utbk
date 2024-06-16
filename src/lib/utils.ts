@@ -36,7 +36,7 @@ export function randomName() {
 
   const randomIndex = Math.floor(Math.random() * indonesianNames.length);
   const randomName = indonesianNames[randomIndex];
-  const randomNumber = Math.floor(100 + Math.random() * 900); // Generates a number between 100 and 999
+  const randomNumber = Math.floor(100 + Math.random() * 900); 
 
   return `${randomName}#${randomNumber}`;
 }
