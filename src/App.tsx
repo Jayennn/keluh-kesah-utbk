@@ -12,14 +12,14 @@ function App() {
   const {setSuccess, success} = useContext(UserContext) as UserContextType;
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const getNameInLocalStorage = localStorage.getItem("name");
+  // useEffect(() => {
+  //   const getNameInLocalStorage = localStorage.getItem("name");
     
-    if(getNameInLocalStorage){
-      navigate("/chats")
-    }
+  //   if(getNameInLocalStorage){
+  //     navigate("/chats")
+  //   }
 
-  }, []);
+  // }, []);
 
   const checkName = async() => {
     try {
